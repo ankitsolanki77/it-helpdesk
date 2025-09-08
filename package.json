@@ -1,0 +1,38 @@
+{
+  "name": "it-helpdesk-portal",
+  "version": "1.0.0",
+  "description": "A modern, responsive IT HelpDesk Portal for Microsoft Forms integration",
+  "main": "index.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "serve": "npx http-server -p 8000",
+    "validate": "npx html-validate index.html",
+    "test": "echo 'No tests specified' && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YOUR_USERNAME/it-helpdesk-portal.git"
+  },
+  "keywords": [
+    "it-portal",
+    "helpdesk",
+    "microsoft-forms",
+    "web-portal",
+    "onboarding",
+    "offboarding",
+    "it-services"
+  ],
+  "author": "Your Organization IT Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/YOUR_USERNAME/it-helpdesk-portal/issues"
+  },
+  "homepage": "https://YOUR_USERNAME.github.io/it-helpdesk-portal",
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "html-validate": "^8.7.4"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

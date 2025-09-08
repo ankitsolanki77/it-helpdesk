@@ -1,0 +1,61 @@
+# GitHub Actions workflow for IT HelpDesk Portal
+# This workflow ensures your site is always up-to-date and provides deployment status
+
+name: Deploy IT HelpDesk Portal
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Validate HTML
+      uses: validator/validator-action@v1
+      with:
+        root: .
+        file_ignore: |
+          .github/
+          README.md
+          DEPLOYMENT.md
+          
+    - name: Check for required files
+      run: |
+        echo "Checking for required files..."
+        if [ ! -f "index.html" ]; then
+          echo "❌ index.html not found"
+          exit 1
+        fi
+        if [ ! -f "styles.css" ]; then
+          echo "❌ styles.css not found"
+          exit 1
+        fi
+        if [ ! -f "script.js" ]; then
+          echo "❌ script.js not found"
+          exit 1
+        fi
+        echo "✅ All required files present"
+        
+    - name: Validate form URLs
+      run: |
+        echo "Validating Microsoft Forms URLs..."
+        if grep -q "forms.office.com" index.html; then
+          echo "✅ Microsoft Forms URLs found"
+        else
+          echo "❌ No Microsoft Forms URLs found"
+          exit 1
+        fi
+        
+    - name: Deployment Status
+      run: |
+        echo "🚀 IT HelpDesk Portal deployment successful!"
+        echo "📅 Deployed on: $(date)"
+        echo "🔗 Your portal will be available at:"
+        echo "   https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}"
