@@ -87,7 +87,10 @@ function loadMSALLibrary() {
 // Login user with Office 365
 async function loginWithOffice365() {
     try {
+        console.log('Office365Auth: Starting login process...');
+        
         if (!msalInstance) {
+            console.log('Office365Auth: Initializing MSAL...');
             await initializeOffice365Auth();
         }
         
@@ -96,16 +99,29 @@ async function loginWithOffice365() {
             prompt: 'select_account'
         };
         
+        console.log('Office365Auth: Login request config:', loginRequest);
+        console.log('Office365Auth: MSAL instance:', msalInstance);
+        
         const response = await msalInstance.loginPopup(loginRequest);
-        console.log('Login successful:', response.account.username);
+        console.log('Office365Auth: Login successful:', response);
         
         // Get user role after successful login
+        console.log('Office365Auth: Getting user role...');
         const userRole = await getUserRoleFromOffice365();
+        console.log('Office365Auth: User role determined:', userRole);
+        
         return userRole;
     } catch (error) {
-        console.error('Login failed:', error);
-        showNotification('Login failed. Please try again.', 'error');
-        return null;
+        console.error('Office365Auth: Login failed with error:', error);
+        console.error('Office365Auth: Error details:', {
+            message: error.message,
+            errorCode: error.errorCode,
+            errorMessage: error.errorMessage,
+            stack: error.stack
+        });
+        
+        // Don't show notification here, let the calling function handle it
+        throw error;
     }
 }
 

@@ -297,7 +297,26 @@ function showServicesAfterAuthentication() {
 
 // Initialize authentication system
 async function initializeAuthentication() {
+    console.log('Initializing authentication system...');
+    console.log('Office365Enabled:', isOffice365Enabled);
+    
     if (isOffice365Enabled) {
+        // Check if MSAL library is loaded
+        if (typeof msal === 'undefined') {
+            console.error('MSAL library not loaded!');
+            showNotification('Authentication system not loaded. Please refresh the page.', 'error');
+            return;
+        }
+        
+        // Check if Office365Auth is available
+        if (!window.Office365Auth) {
+            console.error('Office365Auth not available!');
+            showNotification('Authentication system not available. Please refresh the page.', 'error');
+            return;
+        }
+        
+        console.log('MSAL and Office365Auth are available');
+        
         // Try Office 365 authentication
         try {
             const role = await window.Office365Auth?.getUserRole();
@@ -363,7 +382,17 @@ function addAuthenticationInterface() {
 async function loginWithOffice365() {
     try {
         showNotification('Signing in...', 'info');
+        console.log('Starting Office 365 login...');
+        
+        // Check if Office365Auth is available
+        if (!window.Office365Auth) {
+            throw new Error('Office365Auth not loaded. Check if office365-auth.js is loaded correctly.');
+        }
+        
+        console.log('Office365Auth available, calling login...');
         const role = await window.Office365Auth.login();
+        console.log('Login response:', role);
+        
         if (role && role !== 'unauthorized') {
             currentUserRole = role;
             initializeRoleBasedAccess();
@@ -373,10 +402,27 @@ async function loginWithOffice365() {
             addAuthenticationInterface();
         } else if (role === 'unauthorized') {
             showNotification('You are not authorized to access this portal. Please contact your administrator.', 'error');
+        } else {
+            showNotification('Login failed: No role returned. Please try again.', 'error');
         }
     } catch (error) {
-        console.error('Login failed:', error);
-        showNotification('Login failed. Please try again.', 'error');
+        console.error('Login failed with error:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+        
+        // Show more specific error message
+        let errorMessage = 'Login failed. Please try again.';
+        if (error.message) {
+            errorMessage = `Login failed: ${error.message}`;
+        }
+        
+        showNotification(errorMessage, 'error');
+        
+        // Also show error in console for debugging
+        console.log('Full error object:', error);
     }
 }
 

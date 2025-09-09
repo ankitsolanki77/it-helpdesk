@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSAL Library Test - IT HelpDesk Portal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0066cc 0%, #0080ff 50%, #4da6ff 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #0066cc;
+            margin-bottom: 30px;
+        }
+        
+        .status-box {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+        
+        .test-button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s ease;
+        }
+        
+        .test-button:hover {
+            background: #0052a3;
+        }
+        
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .log-output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            text-align: left;
+            margin-top: 20px;
+        }
+        
+        .config-info {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #b3d9ff;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .config-info code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 MSAL Library Test</h1>
+        
+        <div class="config-info">
+            <h3>📋 Configuration</h3>
+            <p><strong>Application ID:</strong> <code>7a572b71-a735-4852-92af-65931deaa38d</code></p>
+            <p><strong>Tenant ID:</strong> <code>80f3b31b-5dc9-4605-a654-5ad7e6e5417c</code></p>
+            <p><strong>Current URL:</strong> <code id="current-url"></code></p>
+            <p><strong>Redirect URI:</strong> <code id="redirect-uri"></code></p>
+        </div>
+        
+        <div id="msal-status" class="status-box status-warning">
+            Testing MSAL library...
+        </div>
+        
+        <div id="office365auth-status" class="status-box status-warning">
+            Testing Office365Auth...
+        </div>
+        
+        <div id="overall-status" class="status-box status-warning">
+            Overall Status: Testing...
+        </div>
+        
+        <button class="test-button" onclick="testMSAL()" id="test-msal-btn">Test MSAL Login</button>
+        <button class="test-button" onclick="testDirectOAuth()" id="test-oauth-btn">Test Direct OAuth</button>
+        <button class="test-button" onclick="clearLog()">Clear Log</button>
+        
+        <div id="log-output" class="log-output">MSAL Library Test initialized...\n</div>
+    </div>
+
+    <!-- Load MSAL library -->
+    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+    
+    <!-- Load Office365Auth -->
+    <script src="office365-auth.js"></script>
+    
+    <script>
+        // Configuration
+        const config = {
+            clientId: '7a572b71-a735-4852-92af-65931deaa38d',
+            tenantId: '80f3b31b-5dc9-4605-a654-5ad7e6e5417c',
+            redirectUri: window.location.origin + '/auth-callback.html',
+            scopes: ['User.Read', 'GroupMember.Read.All', 'Group.Read.All']
+        };
+        
+        let msalInstance = null;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('current-url').textContent = window.location.href;
+            document.getElementById('redirect-uri').textContent = config.redirectUri;
+            
+            log('MSAL Library Test initialized');
+            log('Current URL: ' + window.location.href);
+            log('Redirect URI: ' + config.redirectUri);
+            
+            // Test MSAL library
+            testMSALLibrary();
+            
+            // Test Office365Auth
+            testOffice365Auth();
+        });
+        
+        // Logging function
+        function log(message) {
+            const logOutput = document.getElementById('log-output');
+            const timestamp = new Date().toLocaleTimeString();
+            logOutput.textContent += `[${timestamp}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Clear log
+        function clearLog() {
+            document.getElementById('log-output').textContent = '';
+        }
+        
+        // Test MSAL library
+        function testMSALLibrary() {
+            const msalStatus = document.getElementById('msal-status');
+            
+            if (typeof msal === 'undefined') {
+                msalStatus.textContent = '❌ MSAL Library: NOT LOADED';
+                msalStatus.className = 'status-box status-error';
+                log('ERROR: MSAL library not loaded!');
+                return false;
+            } else {
+                msalStatus.textContent = '✅ MSAL Library: LOADED';
+                msalStatus.className = 'status-box status-success';
+                log('SUCCESS: MSAL library loaded');
+                
+                // Test MSAL version
+                if (msal.PublicClientApplication) {
+                    log('SUCCESS: MSAL PublicClientApplication available');
+                } else {
+                    log('ERROR: MSAL PublicClientApplication not available');
+                }
+                
+                return true;
+            }
+        }
+        
+        // Test Office365Auth
+        function testOffice365Auth() {
+            const office365authStatus = document.getElementById('office365auth-status');
+            
+            if (!window.Office365Auth) {
+                office365authStatus.textContent = '❌ Office365Auth: NOT AVAILABLE';
+                office365authStatus.className = 'status-box status-error';
+                log('ERROR: Office365Auth not available!');
+                return false;
+            } else {
+                office365authStatus.textContent = '✅ Office365Auth: AVAILABLE';
+                office365authStatus.className = 'status-box status-success';
+                log('SUCCESS: Office365Auth available');
+                
+                // Test configuration
+                if (window.Office365Auth.config) {
+                    log('SUCCESS: Office365Auth config available');
+                    log('Config: ' + JSON.stringify(window.Office365Auth.config, null, 2));
+                } else {
+                    log('ERROR: Office365Auth config not available');
+                }
+                
+                return true;
+            }
+        }
+        
+        // Update overall status
+        function updateOverallStatus() {
+            const overallStatus = document.getElementById('overall-status');
+            const msalOk = testMSALLibrary();
+            const office365authOk = testOffice365Auth();
+            
+            if (msalOk && office365authOk) {
+                overallStatus.textContent = '✅ Overall Status: READY FOR AUTHENTICATION';
+                overallStatus.className = 'status-box status-success';
+                log('SUCCESS: All components ready for authentication');
+            } else {
+                overallStatus.textContent = '❌ Overall Status: NOT READY - CHECK ERRORS';
+                overallStatus.className = 'status-box status-error';
+                log('ERROR: Some components not ready');
+            }
+        }
+        
+        // Test MSAL login
+        async function testMSAL() {
+            try {
+                log('Testing MSAL login...');
+                
+                if (typeof msal === 'undefined') {
+                    throw new Error('MSAL library not loaded');
+                }
+                
+                const msalConfig = {
+                    auth: {
+                        clientId: config.clientId,
+                        authority: `https://login.microsoftonline.com/${config.tenantId}`,
+                        redirectUri: config.redirectUri
+                    },
+                    cache: {
+                        cacheLocation: 'sessionStorage',
+                        storeAuthStateInCookie: false
+                    }
+                };
+                
+                log('MSAL Config: ' + JSON.stringify(msalConfig, null, 2));
+                
+                msalInstance = new msal.PublicClientApplication(msalConfig);
+                log('MSAL instance created successfully');
+                
+                const loginRequest = {
+                    scopes: config.scopes,
+                    prompt: 'select_account'
+                };
+                
+                log('Starting popup login...');
+                const response = await msalInstance.loginPopup(loginRequest);
+                log('Login successful: ' + JSON.stringify(response, null, 2));
+                
+            } catch (error) {
+                log('MSAL login error: ' + error.message);
+                log('Error details: ' + JSON.stringify(error, null, 2));
+            }
+        }
+        
+        // Test direct OAuth
+        function testDirectOAuth() {
+            const oauthUrl = `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize?` +
+                `client_id=${config.clientId}&` +
+                `response_type=code&` +
+                `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
+                `scope=${encodeURIComponent(config.scopes.join(' '))}&` +
+                `response_mode=query&` +
+                `state=test123`;
+            
+            log('Testing direct OAuth URL...');
+            log('OAuth URL: ' + oauthUrl);
+            
+            // Open in new tab
+            window.open(oauthUrl, '_blank');
+        }
+        
+        // Update status periodically
+        setInterval(updateOverallStatus, 2000);
+    </script>
+</body>
+</html>
