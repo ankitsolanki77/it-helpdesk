@@ -301,13 +301,6 @@ async function initializeAuthentication() {
     console.log('Office365Enabled:', isOffice365Enabled);
     
     if (isOffice365Enabled) {
-        // Check if MSAL library is loaded
-        if (typeof msal === 'undefined') {
-            console.error('MSAL library not loaded!');
-            showNotification('Authentication system not loaded. Please refresh the page.', 'error');
-            return;
-        }
-        
         // Check if Office365Auth is available
         if (!window.Office365Auth) {
             console.error('Office365Auth not available!');
@@ -315,23 +308,31 @@ async function initializeAuthentication() {
             return;
         }
         
-        console.log('MSAL and Office365Auth are available');
+        console.log('Office365Auth is available, initializing...');
         
-        // Try Office 365 authentication
+        // Try to initialize Office 365 authentication
         try {
-            const role = await window.Office365Auth?.getUserRole();
-            if (role && role !== 'unauthorized') {
-                currentUserRole = role;
+            console.log('Calling Office365Auth.initialize()...');
+            const initResult = await window.Office365Auth.initialize();
+            console.log('Office365Auth initialization result:', initResult);
+            
+            // Check if user is already authenticated
+            if (initResult && initResult !== 'unauthorized') {
+                currentUserRole = initResult;
                 initializeRoleBasedAccess();
                 showServicesAfterAuthentication();
                 return;
-            } else if (role === 'unauthorized') {
+            } else if (initResult === 'unauthorized') {
                 showNotification('You are not authorized to access this portal. Please contact your administrator.', 'error');
                 return;
             }
+            
+            // User not authenticated, show login interface
+            console.log('User not authenticated, showing login interface');
+            
         } catch (error) {
-            console.error('Office 365 authentication failed:', error);
-            showNotification('Authentication failed. Please try again.', 'error');
+            console.error('Office 365 authentication initialization failed:', error);
+            showNotification('Authentication system failed to initialize. Please refresh the page.', 'error');
         }
     }
     

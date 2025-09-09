@@ -46,23 +46,43 @@ async function initializeOffice365Auth() {
     try {
         console.log('Office365Auth: Starting initialization...');
         
-        // Load MSAL library dynamically
+        // Load MSAL library dynamically with timeout
         if (typeof msal === 'undefined') {
             console.log('Office365Auth: Loading MSAL library...');
-            await loadMSALLibrary();
-            console.log('Office365Auth: MSAL library loaded');
+            try {
+                await Promise.race([
+                    loadMSALLibrary(),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('MSAL library loading timeout')), 10000)
+                    )
+                ]);
+                console.log('Office365Auth: MSAL library loaded');
+            } catch (loadError) {
+                console.error('Office365Auth: Failed to load MSAL library:', loadError);
+                throw new Error('MSAL library failed to load: ' + loadError.message);
+            }
         } else {
             console.log('Office365Auth: MSAL library already available');
         }
         
         // Verify MSAL is available
         if (typeof msal === 'undefined') {
-            throw new Error('MSAL library failed to load');
+            throw new Error('MSAL library is not available after loading');
+        }
+        
+        // Verify MSAL.PublicClientApplication is available
+        if (!msal.PublicClientApplication) {
+            throw new Error('MSAL.PublicClientApplication is not available');
         }
         
         console.log('Office365Auth: Creating MSAL instance with config:', msalConfig);
         msalInstance = new msal.PublicClientApplication(msalConfig);
         console.log('Office365Auth: MSAL instance created:', !!msalInstance);
+        
+        // Verify instance was created successfully
+        if (!msalInstance) {
+            throw new Error('Failed to create MSAL instance');
+        }
         
         // Handle redirect promise
         console.log('Office365Auth: Handling redirect promise...');
@@ -86,13 +106,14 @@ async function initializeOffice365Auth() {
             message: error.message,
             stack: error.stack,
             msalAvailable: typeof msal !== 'undefined',
+            msalPublicClientAvailable: typeof msal !== 'undefined' && !!msal.PublicClientApplication,
             msalInstance: !!msalInstance
         });
         return null;
     }
 }
 
-// Load MSAL library from CDN
+// Load MSAL library from CDN with fallback
 function loadMSALLibrary() {
     return new Promise((resolve, reject) => {
         if (typeof msal !== 'undefined') {
@@ -102,6 +123,8 @@ function loadMSALLibrary() {
         }
         
         console.log('Office365Auth: Loading MSAL library from CDN...');
+        
+        // Try primary CDN first
         const script = document.createElement('script');
         script.src = 'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js';
         
@@ -110,13 +133,42 @@ function loadMSALLibrary() {
             if (typeof msal !== 'undefined') {
                 resolve();
             } else {
-                reject(new Error('MSAL library loaded but not available'));
+                console.error('Office365Auth: MSAL library loaded but not available');
+                // Try fallback CDN
+                loadMSALLibraryFallback().then(resolve).catch(reject);
             }
         };
         
         script.onerror = (error) => {
-            console.error('Office365Auth: Failed to load MSAL library:', error);
-            reject(new Error('Failed to load MSAL library from CDN'));
+            console.error('Office365Auth: Failed to load MSAL library from primary CDN:', error);
+            // Try fallback CDN
+            loadMSALLibraryFallback().then(resolve).catch(reject);
+        };
+        
+        document.head.appendChild(script);
+    });
+}
+
+// Fallback MSAL library loading
+function loadMSALLibraryFallback() {
+    return new Promise((resolve, reject) => {
+        console.log('Office365Auth: Trying fallback MSAL library...');
+        
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/@azure/msal-browser@2.38.3/dist/msal-browser.min.js';
+        
+        script.onload = () => {
+            console.log('Office365Auth: Fallback MSAL library loaded successfully');
+            if (typeof msal !== 'undefined') {
+                resolve();
+            } else {
+                reject(new Error('Both primary and fallback MSAL libraries failed to load'));
+            }
+        };
+        
+        script.onerror = (error) => {
+            console.error('Office365Auth: Failed to load fallback MSAL library:', error);
+            reject(new Error('All MSAL library sources failed to load'));
         };
         
         document.head.appendChild(script);
