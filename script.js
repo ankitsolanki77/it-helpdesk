@@ -1,5 +1,80 @@
 // IT HelpDesk Portal JavaScript
 
+// User Role Configuration
+// Change this to control which services are visible to different user types
+const USER_ROLES = {
+    // Regular users see: Shared Mailbox Access, DL Modification, Application Access (3 services)
+    'user': ['shared-mailbox', 'dl-modification', 'application-access'],
+    
+    // Admin users see: All 5 services
+    'admin': ['onboarding', 'offboarding', 'shared-mailbox', 'dl-modification', 'application-access']
+};
+
+// Current user role - Determined by Office 365 group membership
+let currentUserRole = null; // Will be set by Office 365 authentication
+let isOffice365Enabled = true; // ✅ Office 365 integration ENABLED
+
+// Service mapping for role-based access
+const SERVICE_MAPPING = {
+    'onboarding': 'data-role="all"',
+    'offboarding': 'data-role="admin"',
+    'shared-mailbox': 'data-role="all"',
+    'dl-modification': 'data-role="admin"',
+    'application-access': 'data-role="all"'
+};
+
+// Function to initialize role-based access control
+function initializeRoleBasedAccess() {
+    const serviceCards = document.querySelectorAll('.service-card');
+    
+    serviceCards.forEach(card => {
+        const serviceRole = card.getAttribute('data-role');
+        const serviceName = getServiceName(card);
+        
+        // Check if current user has access to this service
+        if (currentUserRole === 'admin' || serviceRole === 'all' || 
+            USER_ROLES[currentUserRole]?.includes(serviceName)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    // Update grid layout after hiding cards
+    updateGridLayout();
+}
+
+// Function to get service name from card
+function getServiceName(card) {
+    const title = card.querySelector('h3').textContent.toLowerCase();
+    return title.replace(/\s+/g, '-');
+}
+
+// Function to update grid layout
+function updateGridLayout() {
+    const visibleCards = document.querySelectorAll('.service-card[style*="block"], .service-card:not([style*="none"])');
+    const grid = document.querySelector('.services-grid');
+    
+    // Adjust grid columns based on number of visible cards
+    if (visibleCards.length <= 2) {
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(300px, 1fr))';
+    } else if (visibleCards.length === 3) {
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(280px, 1fr))';
+    } else {
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(250px, 1fr))';
+    }
+}
+
+// Function to change user role (for testing purposes)
+function changeUserRole(newRole) {
+    currentUserRole = newRole;
+    initializeRoleBasedAccess();
+    
+    // Show notification
+    const roleText = newRole === 'admin' ? 'Administrator' : 'Regular User';
+    showNotification(`Switched to ${roleText} view`, 'info');
+}
+
 // Function to redirect to Microsoft Forms
 function redirectToForm(button) {
     // Get the parent service card
@@ -173,7 +248,13 @@ function redirectToFormWithTracking(button) {
 }
 
 // Add service card click tracking
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Hide services initially
+    hideServicesUntilAuthentication();
+    
+    // Initialize authentication and role-based access control
+    await initializeAuthentication();
+    
     const serviceCards = document.querySelectorAll('.service-card');
     
     serviceCards.forEach(card => {
@@ -193,7 +274,144 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.cursor = 'pointer';
         });
     });
+    
+    // Add authentication and role management interface
+    addAuthenticationInterface();
 });
+
+// Hide services until user is authenticated
+function hideServicesUntilAuthentication() {
+    const servicesGrid = document.querySelector('.services-grid');
+    if (servicesGrid) {
+        servicesGrid.style.display = 'none';
+    }
+}
+
+// Show services after authentication
+function showServicesAfterAuthentication() {
+    const servicesGrid = document.querySelector('.services-grid');
+    if (servicesGrid) {
+        servicesGrid.style.display = 'grid';
+    }
+}
+
+// Initialize authentication system
+async function initializeAuthentication() {
+    if (isOffice365Enabled) {
+        // Try Office 365 authentication
+        try {
+            const role = await window.Office365Auth?.getUserRole();
+            if (role && role !== 'unauthorized') {
+                currentUserRole = role;
+                initializeRoleBasedAccess();
+                showServicesAfterAuthentication();
+                return;
+            } else if (role === 'unauthorized') {
+                showNotification('You are not authorized to access this portal. Please contact your administrator.', 'error');
+                return;
+            }
+        } catch (error) {
+            console.error('Office 365 authentication failed:', error);
+            showNotification('Authentication failed. Please try again.', 'error');
+        }
+    }
+    
+    // Fallback to default role or show login
+    if (currentUserRole === null) {
+        currentUserRole = 'user'; // Default fallback
+        initializeRoleBasedAccess();
+        showServicesAfterAuthentication();
+    }
+}
+
+// Add authentication interface
+function addAuthenticationInterface() {
+    const header = document.querySelector('.header-content');
+    
+    if (isOffice365Enabled) {
+        // Office 365 authentication interface
+        const authInterface = document.createElement('div');
+        authInterface.className = 'auth-interface';
+        
+        if (window.Office365Auth?.isAuthenticated()) {
+            const user = window.Office365Auth.getCurrentUser();
+            authInterface.innerHTML = `
+                <div class="user-info">
+                    <p class="user-name">Welcome, ${user?.name || user?.username || 'User'}</p>
+                    <p class="user-role">Role: ${currentUserRole === 'admin' ? 'Administrator' : 'Regular User'}</p>
+                    <button onclick="logoutFromOffice365()" class="logout-btn">Logout</button>
+                </div>
+            `;
+        } else {
+            authInterface.innerHTML = `
+                <div class="login-prompt">
+                    <p>Please sign in with your Office 365 account to access the portal.</p>
+                    <button onclick="loginWithOffice365()" class="login-btn">Sign in with Office 365</button>
+                </div>
+            `;
+        }
+        
+        header.appendChild(authInterface);
+    } else {
+        // Fallback: Add role switching buttons for testing
+        addRoleSwitchingButtons();
+    }
+}
+
+// Office 365 login function
+async function loginWithOffice365() {
+    try {
+        showNotification('Signing in...', 'info');
+        const role = await window.Office365Auth.login();
+        if (role && role !== 'unauthorized') {
+            currentUserRole = role;
+            initializeRoleBasedAccess();
+            showServicesAfterAuthentication();
+            showNotification('Login successful!', 'success');
+            // Update the UI without full page reload
+            addAuthenticationInterface();
+        } else if (role === 'unauthorized') {
+            showNotification('You are not authorized to access this portal. Please contact your administrator.', 'error');
+        }
+    } catch (error) {
+        console.error('Login failed:', error);
+        showNotification('Login failed. Please try again.', 'error');
+    }
+}
+
+// Office 365 logout function
+async function logoutFromOffice365() {
+    try {
+        await window.Office365Auth.logout();
+        currentUserRole = null;
+        hideServicesUntilAuthentication();
+        showNotification('Logged out successfully', 'success');
+        // Update the UI without full page reload
+        addAuthenticationInterface();
+    } catch (error) {
+        console.error('Logout failed:', error);
+    }
+}
+
+// Function to add role switching buttons for testing (fallback)
+function addRoleSwitchingButtons() {
+    const header = document.querySelector('.header-content');
+    const roleSwitcher = document.createElement('div');
+    roleSwitcher.className = 'role-switcher';
+    roleSwitcher.innerHTML = `
+        <div class="role-buttons">
+            <button onclick="changeUserRole('user')" class="role-btn ${currentUserRole === 'user' ? 'active' : ''}">
+                Regular User (Shared Mailbox, DL Mod, App Access)
+            </button>
+            <button onclick="changeUserRole('admin')" class="role-btn ${currentUserRole === 'admin' ? 'active' : ''}">
+                Admin (All 5 services)
+            </button>
+        </div>
+        <p class="role-info">Current view: ${currentUserRole === 'admin' ? 'Administrator (All Services)' : 'Regular User (3 Services)'}</p>
+    `;
+    
+    header.appendChild(roleSwitcher);
+}
 
 // Add loading state management
 function showLoadingState() {
