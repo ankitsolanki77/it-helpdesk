@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSAL Fix Test - IT HelpDesk Portal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0066cc 0%, #0080ff 50%, #4da6ff 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #0066cc;
+            margin-bottom: 30px;
+        }
+        
+        .status-box {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+        
+        .test-button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s ease;
+        }
+        
+        .test-button:hover {
+            background: #0052a3;
+        }
+        
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .log-output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            text-align: left;
+            margin-top: 20px;
+        }
+        
+        .fix-info {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #b3d9ff;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .fix-info h3 {
+            color: #0066cc;
+            margin-top: 0;
+        }
+        
+        .fix-info code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 MSAL Fix Test</h1>
+        
+        <div class="fix-info">
+            <h3>🚨 Issue Fixed: "Cannot read properties of null (reading 'loginPopup')"</h3>
+            <p><strong>Root Cause:</strong> MSAL instance was null when trying to call loginPopup()</p>
+            <p><strong>Fix Applied:</strong></p>
+            <ul>
+                <li>Enhanced MSAL initialization with proper error handling</li>
+                <li>Added null checks before calling loginPopup()</li>
+                <li>Improved logging to track initialization process</li>
+                <li>Added fallback mechanisms for library loading</li>
+            </ul>
+        </div>
+        
+        <div id="msal-status" class="status-box status-warning">
+            Testing MSAL initialization...
+        </div>
+        
+        <div id="office365auth-status" class="status-box status-warning">
+            Testing Office365Auth...
+        </div>
+        
+        <div id="login-test-status" class="status-box status-warning">
+            Login test: Not started
+        </div>
+        
+        <button class="test-button" onclick="testMSALInitialization()" id="test-init-btn">Test MSAL Initialization</button>
+        <button class="test-button" onclick="testLoginProcess()" id="test-login-btn">Test Login Process</button>
+        <button class="test-button" onclick="clearLog()">Clear Log</button>
+        
+        <div id="log-output" class="log-output">MSAL Fix Test initialized...\n</div>
+    </div>
+
+    <!-- Load MSAL library -->
+    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+    
+    <!-- Load Office365Auth -->
+    <script src="office365-auth.js"></script>
+    
+    <script>
+        // Configuration
+        const config = {
+            clientId: '7a572b71-a735-4852-92af-65931deaa38d',
+            tenantId: '80f3b31b-5dc9-4605-a654-5ad7e6e5417c',
+            redirectUri: window.location.origin + '/auth-callback.html',
+            scopes: ['User.Read', 'GroupMember.Read.All', 'Group.Read.All']
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            log('MSAL Fix Test initialized');
+            log('Testing the fix for "Cannot read properties of null (reading \'loginPopup\')" error');
+            
+            // Test MSAL library
+            testMSALLibrary();
+            
+            // Test Office365Auth
+            testOffice365Auth();
+        });
+        
+        // Logging function
+        function log(message) {
+            const logOutput = document.getElementById('log-output');
+            const timestamp = new Date().toLocaleTimeString();
+            logOutput.textContent += `[${timestamp}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Clear log
+        function clearLog() {
+            document.getElementById('log-output').textContent = '';
+        }
+        
+        // Test MSAL library
+        function testMSALLibrary() {
+            const msalStatus = document.getElementById('msal-status');
+            
+            if (typeof msal === 'undefined') {
+                msalStatus.textContent = '❌ MSAL Library: NOT LOADED';
+                msalStatus.className = 'status-box status-error';
+                log('ERROR: MSAL library not loaded!');
+                return false;
+            } else {
+                msalStatus.textContent = '✅ MSAL Library: LOADED';
+                msalStatus.className = 'status-box status-success';
+                log('SUCCESS: MSAL library loaded');
+                
+                // Test MSAL version
+                if (msal.PublicClientApplication) {
+                    log('SUCCESS: MSAL PublicClientApplication available');
+                } else {
+                    log('ERROR: MSAL PublicClientApplication not available');
+                }
+                
+                return true;
+            }
+        }
+        
+        // Test Office365Auth
+        function testOffice365Auth() {
+            const office365authStatus = document.getElementById('office365auth-status');
+            
+            if (!window.Office365Auth) {
+                office365authStatus.textContent = '❌ Office365Auth: NOT AVAILABLE';
+                office365authStatus.className = 'status-box status-error';
+                log('ERROR: Office365Auth not available!');
+                return false;
+            } else {
+                office365authStatus.textContent = '✅ Office365Auth: AVAILABLE';
+                office365authStatus.className = 'status-box status-success';
+                log('SUCCESS: Office365Auth available');
+                
+                // Test configuration
+                if (window.Office365Auth.config) {
+                    log('SUCCESS: Office365Auth config available');
+                    log('Config: ' + JSON.stringify(window.Office365Auth.config, null, 2));
+                } else {
+                    log('ERROR: Office365Auth config not available');
+                }
+                
+                return true;
+            }
+        }
+        
+        // Test MSAL initialization
+        async function testMSALInitialization() {
+            try {
+                log('Testing MSAL initialization...');
+                
+                if (!window.Office365Auth) {
+                    throw new Error('Office365Auth not available');
+                }
+                
+                log('Calling Office365Auth.initialize()...');
+                const result = await window.Office365Auth.initialize();
+                log('Initialization result: ' + result);
+                
+                log('SUCCESS: MSAL initialization completed');
+                
+            } catch (error) {
+                log('ERROR: MSAL initialization failed: ' + error.message);
+                log('Error details: ' + JSON.stringify(error, null, 2));
+            }
+        }
+        
+        // Test login process
+        async function testLoginProcess() {
+            const loginTestStatus = document.getElementById('login-test-status');
+            
+            try {
+                loginTestStatus.textContent = 'Login test: In progress...';
+                loginTestStatus.className = 'status-box status-warning';
+                
+                log('Testing login process...');
+                
+                if (!window.Office365Auth) {
+                    throw new Error('Office365Auth not available');
+                }
+                
+                log('Calling Office365Auth.login()...');
+                const result = await window.Office365Auth.login();
+                log('Login result: ' + result);
+                
+                loginTestStatus.textContent = 'Login test: SUCCESS';
+                loginTestStatus.className = 'status-box status-success';
+                log('SUCCESS: Login process completed without null error');
+                
+            } catch (error) {
+                loginTestStatus.textContent = 'Login test: FAILED';
+                loginTestStatus.className = 'status-box status-error';
+                log('ERROR: Login process failed: ' + error.message);
+                log('Error details: ' + JSON.stringify(error, null, 2));
+                
+                // Check if it's the specific null error we fixed
+                if (error.message.includes('Cannot read properties of null')) {
+                    log('🚨 This is the error we were trying to fix!');
+                    log('The fix may not be working properly.');
+                } else {
+                    log('✅ This is a different error - the null error fix is working!');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

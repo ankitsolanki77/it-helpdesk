@@ -44,26 +44,50 @@ let msalInstance = null;
 // Initialize Office 365 authentication
 async function initializeOffice365Auth() {
     try {
+        console.log('Office365Auth: Starting initialization...');
+        
         // Load MSAL library dynamically
         if (typeof msal === 'undefined') {
+            console.log('Office365Auth: Loading MSAL library...');
             await loadMSALLibrary();
+            console.log('Office365Auth: MSAL library loaded');
+        } else {
+            console.log('Office365Auth: MSAL library already available');
         }
         
+        // Verify MSAL is available
+        if (typeof msal === 'undefined') {
+            throw new Error('MSAL library failed to load');
+        }
+        
+        console.log('Office365Auth: Creating MSAL instance with config:', msalConfig);
         msalInstance = new msal.PublicClientApplication(msalConfig);
+        console.log('Office365Auth: MSAL instance created:', !!msalInstance);
         
         // Handle redirect promise
+        console.log('Office365Auth: Handling redirect promise...');
         await msalInstance.handleRedirectPromise();
+        console.log('Office365Auth: Redirect promise handled');
         
         // Check if user is already logged in
         const accounts = msalInstance.getAllAccounts();
+        console.log('Office365Auth: Found accounts:', accounts.length);
+        
         if (accounts.length > 0) {
-            console.log('User already logged in:', accounts[0].username);
+            console.log('Office365Auth: User already logged in:', accounts[0].username);
             return await getUserRoleFromOffice365();
         }
         
+        console.log('Office365Auth: No existing accounts found');
         return null; // User not logged in
     } catch (error) {
-        console.error('Error initializing Office 365 auth:', error);
+        console.error('Office365Auth: Error initializing Office 365 auth:', error);
+        console.error('Office365Auth: Error details:', {
+            message: error.message,
+            stack: error.stack,
+            msalAvailable: typeof msal !== 'undefined',
+            msalInstance: !!msalInstance
+        });
         return null;
     }
 }
@@ -72,14 +96,29 @@ async function initializeOffice365Auth() {
 function loadMSALLibrary() {
     return new Promise((resolve, reject) => {
         if (typeof msal !== 'undefined') {
+            console.log('Office365Auth: MSAL library already loaded');
             resolve();
             return;
         }
         
+        console.log('Office365Auth: Loading MSAL library from CDN...');
         const script = document.createElement('script');
         script.src = 'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js';
-        script.onload = resolve;
-        script.onerror = reject;
+        
+        script.onload = () => {
+            console.log('Office365Auth: MSAL library loaded successfully');
+            if (typeof msal !== 'undefined') {
+                resolve();
+            } else {
+                reject(new Error('MSAL library loaded but not available'));
+            }
+        };
+        
+        script.onerror = (error) => {
+            console.error('Office365Auth: Failed to load MSAL library:', error);
+            reject(new Error('Failed to load MSAL library from CDN'));
+        };
+        
         document.head.appendChild(script);
     });
 }
@@ -89,10 +128,19 @@ async function loginWithOffice365() {
     try {
         console.log('Office365Auth: Starting login process...');
         
+        // Ensure MSAL is properly initialized
         if (!msalInstance) {
             console.log('Office365Auth: Initializing MSAL...');
-            await initializeOffice365Auth();
+            const initResult = await initializeOffice365Auth();
+            console.log('Office365Auth: MSAL initialization result:', initResult);
         }
+        
+        // Double-check that MSAL instance is available
+        if (!msalInstance) {
+            throw new Error('MSAL instance is null after initialization');
+        }
+        
+        console.log('Office365Auth: MSAL instance available:', !!msalInstance);
         
         const loginRequest = {
             scopes: OFFICE365_CONFIG.scopes,
@@ -100,7 +148,7 @@ async function loginWithOffice365() {
         };
         
         console.log('Office365Auth: Login request config:', loginRequest);
-        console.log('Office365Auth: MSAL instance:', msalInstance);
+        console.log('Office365Auth: About to call loginPopup...');
         
         const response = await msalInstance.loginPopup(loginRequest);
         console.log('Office365Auth: Login successful:', response);
@@ -117,7 +165,8 @@ async function loginWithOffice365() {
             message: error.message,
             errorCode: error.errorCode,
             errorMessage: error.errorMessage,
-            stack: error.stack
+            stack: error.stack,
+            msalInstance: !!msalInstance
         });
         
         // Don't show notification here, let the calling function handle it
