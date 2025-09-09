@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSAL Instance Debug - IT HelpDesk Portal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0066cc 0%, #0080ff 50%, #4da6ff 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .test-container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #0066cc;
+            margin-bottom: 30px;
+        }
+        
+        .status-box {
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .status-success {
+            background: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+        
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .status-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+        
+        .test-button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s ease;
+        }
+        
+        .test-button:hover {
+            background: #0052a3;
+        }
+        
+        .test-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .log-output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 500px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            text-align: left;
+            margin-top: 20px;
+        }
+        
+        .debug-info {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #b3d9ff;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        
+        .debug-info h3 {
+            color: #0066cc;
+            margin-top: 0;
+        }
+        
+        .debug-info code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .status-item {
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+        }
+        
+        .status-item h4 {
+            margin: 0 0 10px 0;
+            color: #0066cc;
+        }
+        
+        .status-item .value {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 MSAL Instance Debug</h1>
+        
+        <div class="debug-info">
+            <h3>🚨 Issue: MSAL Instance Becomes Null After Initialization</h3>
+            <p><strong>Problem:</strong> MSAL instance is created during initialization but becomes null when trying to use it for login.</p>
+            <p><strong>Debug Steps:</strong></p>
+            <ul>
+                <li>Check MSAL library loading</li>
+                <li>Verify MSAL instance creation</li>
+                <li>Track MSAL instance state changes</li>
+                <li>Test login process with enhanced logging</li>
+            </ul>
+        </div>
+        
+        <div class="status-grid">
+            <div class="status-item">
+                <h4>MSAL Library</h4>
+                <div class="value" id="msal-library-status">Checking...</div>
+            </div>
+            <div class="status-item">
+                <h4>MSAL Instance</h4>
+                <div class="value" id="msal-instance-status">Checking...</div>
+            </div>
+            <div class="status-item">
+                <h4>Office365Auth</h4>
+                <div class="value" id="office365auth-status">Checking...</div>
+            </div>
+            <div class="status-item">
+                <h4>Login Method</h4>
+                <div class="value" id="login-method-status">Checking...</div>
+            </div>
+        </div>
+        
+        <div id="overall-status" class="status-box status-warning">
+            Overall Status: Initializing...
+        </div>
+        
+        <button class="test-button" onclick="checkMSALStatus()" id="check-status-btn">Check MSAL Status</button>
+        <button class="test-button" onclick="testInitialization()" id="test-init-btn">Test Initialization</button>
+        <button class="test-button" onclick="testLoginProcess()" id="test-login-btn">Test Login Process</button>
+        <button class="test-button" onclick="clearLog()">Clear Log</button>
+        
+        <div id="log-output" class="log-output">MSAL Instance Debug initialized...\n</div>
+    </div>
+
+    <!-- Load Office365Auth (which will load MSAL) -->
+    <script src="office365-auth.js"></script>
+    
+    <script>
+        // Configuration
+        const config = {
+            clientId: '7a572b71-a735-4852-92af-65931deaa38d',
+            tenantId: '80f3b31b-5dc9-4605-a654-5ad7e6e5417c',
+            redirectUri: window.location.origin + '/auth-callback.html',
+            scopes: ['User.Read', 'GroupMember.Read.All', 'Group.Read.All']
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            log('MSAL Instance Debug initialized');
+            log('Debugging MSAL instance null issue');
+            
+            // Initial status check
+            checkMSALStatus();
+        });
+        
+        // Logging function
+        function log(message) {
+            const logOutput = document.getElementById('log-output');
+            const timestamp = new Date().toLocaleTimeString();
+            logOutput.textContent += `[${timestamp}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Clear log
+        function clearLog() {
+            document.getElementById('log-output').textContent = '';
+        }
+        
+        // Check MSAL status
+        function checkMSALStatus() {
+            log('Checking MSAL status...');
+            
+            // Check MSAL library
+            const msalLibraryStatus = document.getElementById('msal-library-status');
+            if (typeof msal === 'undefined') {
+                msalLibraryStatus.textContent = '❌ NOT LOADED';
+                msalLibraryStatus.style.color = '#dc3545';
+            } else {
+                msalLibraryStatus.textContent = '✅ LOADED';
+                msalLibraryStatus.style.color = '#28a745';
+                log('SUCCESS: MSAL library is loaded');
+            }
+            
+            // Check Office365Auth
+            const office365authStatus = document.getElementById('office365auth-status');
+            if (!window.Office365Auth) {
+                office365authStatus.textContent = '❌ NOT AVAILABLE';
+                office365authStatus.style.color = '#dc3545';
+            } else {
+                office365authStatus.textContent = '✅ AVAILABLE';
+                office365authStatus.style.color = '#28a745';
+                log('SUCCESS: Office365Auth is available');
+                
+                // Get detailed status
+                if (window.Office365Auth.getMSALStatus) {
+                    const status = window.Office365Auth.getMSALStatus();
+                    log('MSAL Status: ' + JSON.stringify(status, null, 2));
+                    
+                    // Update MSAL instance status
+                    const msalInstanceStatus = document.getElementById('msal-instance-status');
+                    if (status.msalInstanceAvailable) {
+                        msalInstanceStatus.textContent = '✅ AVAILABLE';
+                        msalInstanceStatus.style.color = '#28a745';
+                    } else {
+                        msalInstanceStatus.textContent = '❌ NULL';
+                        msalInstanceStatus.style.color = '#dc3545';
+                    }
+                    
+                    // Update login method status
+                    const loginMethodStatus = document.getElementById('login-method-status');
+                    if (status.hasLoginPopup) {
+                        loginMethodStatus.textContent = '✅ AVAILABLE';
+                        loginMethodStatus.style.color = '#28a745';
+                    } else {
+                        loginMethodStatus.textContent = '❌ MISSING';
+                        loginMethodStatus.style.color = '#dc3545';
+                    }
+                }
+            }
+            
+            // Update overall status
+            updateOverallStatus();
+        }
+        
+        // Update overall status
+        function updateOverallStatus() {
+            const overallStatus = document.getElementById('overall-status');
+            const msalOk = typeof msal !== 'undefined';
+            const office365authOk = !!window.Office365Auth;
+            
+            if (msalOk && office365authOk) {
+                if (window.Office365Auth.getMSALStatus) {
+                    const status = window.Office365Auth.getMSALStatus();
+                    if (status.msalInstanceAvailable && status.hasLoginPopup) {
+                        overallStatus.textContent = '✅ Overall Status: READY FOR LOGIN';
+                        overallStatus.className = 'status-box status-success';
+                    } else {
+                        overallStatus.textContent = '⚠️ Overall Status: MSAL INSTANCE ISSUE';
+                        overallStatus.className = 'status-box status-warning';
+                    }
+                } else {
+                    overallStatus.textContent = '✅ Overall Status: READY FOR TESTING';
+                    overallStatus.className = 'status-box status-success';
+                }
+            } else {
+                overallStatus.textContent = '❌ Overall Status: NOT READY';
+                overallStatus.className = 'status-box status-error';
+            }
+        }
+        
+        // Test initialization
+        async function testInitialization() {
+            try {
+                log('Testing initialization process...');
+                
+                if (!window.Office365Auth) {
+                    throw new Error('Office365Auth not available');
+                }
+                
+                log('Calling Office365Auth.initialize()...');
+                const result = await window.Office365Auth.initialize();
+                log('Initialization result: ' + result);
+                
+                // Check status after initialization
+                if (window.Office365Auth.getMSALStatus) {
+                    const status = window.Office365Auth.getMSALStatus();
+                    log('MSAL Status after init: ' + JSON.stringify(status, null, 2));
+                }
+                
+                log('SUCCESS: Initialization test completed');
+                
+                // Update status display
+                checkMSALStatus();
+                
+            } catch (error) {
+                log('ERROR: Initialization test failed: ' + error.message);
+                log('Error details: ' + JSON.stringify(error, null, 2));
+            }
+        }
+        
+        // Test login process
+        async function testLoginProcess() {
+            try {
+                log('Testing login process...');
+                
+                if (!window.Office365Auth) {
+                    throw new Error('Office365Auth not available');
+                }
+                
+                // Check status before login
+                if (window.Office365Auth.getMSALStatus) {
+                    const statusBefore = window.Office365Auth.getMSALStatus();
+                    log('MSAL Status before login: ' + JSON.stringify(statusBefore, null, 2));
+                }
+                
+                log('Calling Office365Auth.login()...');
+                const result = await window.Office365Auth.login();
+                log('Login result: ' + result);
+                
+                log('SUCCESS: Login process test completed');
+                
+            } catch (error) {
+                log('ERROR: Login process test failed: ' + error.message);
+                log('Error details: ' + JSON.stringify(error, null, 2));
+                
+                // Check status after error
+                if (window.Office365Auth.getMSALStatus) {
+                    const statusAfter = window.Office365Auth.getMSALStatus();
+                    log('MSAL Status after error: ' + JSON.stringify(statusAfter, null, 2));
+                }
+                
+                // Check if it's the specific null error we're trying to fix
+                if (error.message.includes('MSAL instance is null')) {
+                    log('🚨 This is the error we are trying to fix!');
+                    log('The MSAL instance is becoming null after initialization.');
+                } else {
+                    log('✅ This is a different error - the null error fix may be working!');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

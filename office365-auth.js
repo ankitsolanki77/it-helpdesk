@@ -179,20 +179,30 @@ function loadMSALLibraryFallback() {
 async function loginWithOffice365() {
     try {
         console.log('Office365Auth: Starting login process...');
+        console.log('Office365Auth: Current msalInstance state:', !!msalInstance);
         
         // Ensure MSAL is properly initialized
         if (!msalInstance) {
-            console.log('Office365Auth: Initializing MSAL...');
+            console.log('Office365Auth: MSAL instance is null, initializing...');
             const initResult = await initializeOffice365Auth();
             console.log('Office365Auth: MSAL initialization result:', initResult);
+            console.log('Office365Auth: MSAL instance after init:', !!msalInstance);
         }
         
         // Double-check that MSAL instance is available
         if (!msalInstance) {
+            console.error('Office365Auth: MSAL instance is still null after initialization attempt');
             throw new Error('MSAL instance is null after initialization');
         }
         
         console.log('Office365Auth: MSAL instance available:', !!msalInstance);
+        console.log('Office365Auth: MSAL instance type:', typeof msalInstance);
+        
+        // Verify MSAL instance has required methods
+        if (!msalInstance.loginPopup) {
+            console.error('Office365Auth: MSAL instance does not have loginPopup method');
+            throw new Error('MSAL instance is invalid - missing loginPopup method');
+        }
         
         const loginRequest = {
             scopes: OFFICE365_CONFIG.scopes,
@@ -218,7 +228,9 @@ async function loginWithOffice365() {
             errorCode: error.errorCode,
             errorMessage: error.errorMessage,
             stack: error.stack,
-            msalInstance: !!msalInstance
+            msalInstance: !!msalInstance,
+            msalInstanceType: typeof msalInstance,
+            msalAvailable: typeof msal !== 'undefined'
         });
         
         // Don't show notification here, let the calling function handle it
@@ -368,6 +380,31 @@ function getCurrentUser() {
     return accounts.length > 0 ? accounts[0] : null;
 }
 
+// Ensure MSAL instance is available
+async function ensureMSALInstance() {
+    if (!msalInstance) {
+        console.log('Office365Auth: MSAL instance not available, initializing...');
+        await initializeOffice365Auth();
+    }
+    
+    if (!msalInstance) {
+        throw new Error('Failed to create MSAL instance');
+    }
+    
+    return msalInstance;
+}
+
+// Get MSAL instance status
+function getMSALStatus() {
+    return {
+        msalAvailable: typeof msal !== 'undefined',
+        msalInstanceAvailable: !!msalInstance,
+        msalInstanceType: typeof msalInstance,
+        hasLoginPopup: msalInstance && typeof msalInstance.loginPopup === 'function',
+        config: OFFICE365_CONFIG
+    };
+}
+
 // Export functions for use in main script
 window.Office365Auth = {
     initialize: initializeOffice365Auth,
@@ -377,5 +414,7 @@ window.Office365Auth = {
     getUserInfo: getUserInfo,
     isAuthenticated: isUserAuthenticated,
     getCurrentUser: getCurrentUser,
+    ensureMSALInstance: ensureMSALInstance,
+    getMSALStatus: getMSALStatus,
     config: OFFICE365_CONFIG
 };
