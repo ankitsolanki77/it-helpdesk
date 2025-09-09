@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Debug - IT HelpDesk Portal</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0066cc 0%, #0080ff 50%, #4da6ff 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .debug-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #0066cc;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .debug-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #0066cc;
+        }
+        
+        .debug-section h3 {
+            color: #0066cc;
+            margin-top: 0;
+        }
+        
+        .test-button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: background 0.3s ease;
+        }
+        
+        .test-button:hover {
+            background: #0052a3;
+        }
+        
+        .error-button {
+            background: #e74c3c;
+        }
+        
+        .error-button:hover {
+            background: #c0392b;
+        }
+        
+        .success-button {
+            background: #27ae60;
+        }
+        
+        .success-button:hover {
+            background: #229954;
+        }
+        
+        .log-output {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .config-info {
+            background: #e8f4fd;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #b3d9ff;
+        }
+        
+        .config-info code {
+            background: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <h1>🔧 Login Debug Tool</h1>
+        
+        <div class="debug-section">
+            <h3>📋 Current Configuration</h3>
+            <div class="config-info">
+                <p><strong>Application ID:</strong> <code>7a572b71-a735-4852-92af-65931deaa38d</code></p>
+                <p><strong>Tenant ID:</strong> <code>80f3b31b-5dc9-4605-a654-5ad7e6e5417c</code></p>
+                <p><strong>Current URL:</strong> <code id="current-url"></code></p>
+                <p><strong>Redirect URI:</strong> <code id="redirect-uri"></code></p>
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>🧪 Test Authentication</h3>
+            <button class="test-button" onclick="testDirectOAuth()">Test Direct OAuth URL</button>
+            <button class="test-button" onclick="testMSALInit()">Test MSAL Initialization</button>
+            <button class="test-button" onclick="testGroupAccess()">Test Group Access</button>
+            <button class="error-button" onclick="clearLog()">Clear Log</button>
+        </div>
+        
+        <div class="debug-section">
+            <h3>🔍 Debug Information</h3>
+            <div id="log-output" class="log-output">Click a test button to see debug information...</div>
+        </div>
+        
+        <div class="debug-section">
+            <h3>🚀 Quick Fixes</h3>
+            <button class="success-button" onclick="openAzurePortal()">Open Azure Portal</button>
+            <button class="success-button" onclick="openGraphExplorer()">Open Graph Explorer</button>
+            <button class="test-button" onclick="copyConfig()">Copy Configuration</button>
+        </div>
+    </div>
+
+    <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+    <script>
+        // Configuration
+        const config = {
+            clientId: '7a572b71-a735-4852-92af-65931deaa38d',
+            tenantId: '80f3b31b-5dc9-4605-a654-5ad7e6e5417c',
+            redirectUri: window.location.origin + '/auth-callback.html',
+            scopes: ['User.Read', 'GroupMember.Read.All', 'Group.Read.All']
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('current-url').textContent = window.location.href;
+            document.getElementById('redirect-uri').textContent = config.redirectUri;
+            log('Debug tool initialized');
+            log('Current URL: ' + window.location.href);
+            log('Redirect URI: ' + config.redirectUri);
+        });
+        
+        // Logging function
+        function log(message) {
+            const logOutput = document.getElementById('log-output');
+            const timestamp = new Date().toLocaleTimeString();
+            logOutput.textContent += `[${timestamp}] ${message}\n`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        // Clear log
+        function clearLog() {
+            document.getElementById('log-output').textContent = '';
+        }
+        
+        // Test direct OAuth URL
+        function testDirectOAuth() {
+            const oauthUrl = `https://login.microsoftonline.com/${config.tenantId}/oauth2/v2.0/authorize?` +
+                `client_id=${config.clientId}&` +
+                `response_type=code&` +
+                `redirect_uri=${encodeURIComponent(config.redirectUri)}&` +
+                `scope=${encodeURIComponent(config.scopes.join(' '))}&` +
+                `response_mode=query&` +
+                `state=test123`;
+            
+            log('Testing direct OAuth URL...');
+            log('OAuth URL: ' + oauthUrl);
+            
+            // Open in new tab
+            window.open(oauthUrl, '_blank');
+        }
+        
+        // Test MSAL initialization
+        async function testMSALInit() {
+            try {
+                log('Testing MSAL initialization...');
+                
+                const msalConfig = {
+                    auth: {
+                        clientId: config.clientId,
+                        authority: `https://login.microsoftonline.com/${config.tenantId}`,
+                        redirectUri: config.redirectUri
+                    },
+                    cache: {
+                        cacheLocation: 'sessionStorage',
+                        storeAuthStateInCookie: false
+                    }
+                };
+                
+                log('MSAL Config: ' + JSON.stringify(msalConfig, null, 2));
+                
+                const msalInstance = new msal.PublicClientApplication(msalConfig);
+                log('MSAL instance created successfully');
+                
+                // Handle redirect promise
+                const response = await msalInstance.handleRedirectPromise();
+                if (response) {
+                    log('Redirect response received: ' + JSON.stringify(response, null, 2));
+                } else {
+                    log('No redirect response (user not authenticated)');
+                }
+                
+                // Check accounts
+                const accounts = msalInstance.getAllAccounts();
+                log('Current accounts: ' + accounts.length);
+                if (accounts.length > 0) {
+                    log('Account details: ' + JSON.stringify(accounts[0], null, 2));
+                }
+                
+            } catch (error) {
+                log('MSAL initialization error: ' + error.message);
+                log('Error details: ' + JSON.stringify(error, null, 2));
+            }
+        }
+        
+        // Test group access
+        async function testGroupAccess() {
+            try {
+                log('Testing group access...');
+                
+                const msalConfig = {
+                    auth: {
+                        clientId: config.clientId,
+                        authority: `https://login.microsoftonline.com/${config.tenantId}`,
+                        redirectUri: config.redirectUri
+                    }
+                };
+                
+                const msalInstance = new msal.PublicClientApplication(msalConfig);
+                const accounts = msalInstance.getAllAccounts();
+                
+                if (accounts.length === 0) {
+                    log('No authenticated accounts found. Please login first.');
+                    return;
+                }
+                
+                const silentRequest = {
+                    scopes: config.scopes,
+                    account: accounts[0]
+                };
+                
+                const response = await msalInstance.acquireTokenSilent(silentRequest);
+                log('Token acquired successfully');
+                
+                // Test group membership
+                const groupResponse = await fetch('https://graph.microsoft.com/v1.0/me/memberOf', {
+                    headers: {
+                        'Authorization': `Bearer ${response.accessToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (groupResponse.ok) {
+                    const groups = await groupResponse.json();
+                    log('Group membership: ' + JSON.stringify(groups, null, 2));
+                } else {
+                    log('Group access error: ' + groupResponse.status + ' ' + groupResponse.statusText);
+                }
+                
+            } catch (error) {
+                log('Group access error: ' + error.message);
+            }
+        }
+        
+        // Open Azure Portal
+        function openAzurePortal() {
+            const azureUrl = `https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Authentication/appId/${config.clientId}`;
+            window.open(azureUrl, '_blank');
+            log('Opening Azure Portal for app registration...');
+        }
+        
+        // Open Graph Explorer
+        function openGraphExplorer() {
+            window.open('https://developer.microsoft.com/en-us/graph/graph-explorer', '_blank');
+            log('Opening Graph Explorer...');
+        }
+        
+        // Copy configuration
+        function copyConfig() {
+            const configText = `Application ID: ${config.clientId}
+Tenant ID: ${config.tenantId}
+Redirect URI: ${config.redirectUri}
+Scopes: ${config.scopes.join(', ')}`;
+            
+            navigator.clipboard.writeText(configText).then(() => {
+                log('Configuration copied to clipboard');
+            }).catch(err => {
+                log('Failed to copy configuration: ' + err.message);
+            });
+        }
+    </script>
+</body>
+</html>

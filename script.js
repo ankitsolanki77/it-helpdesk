@@ -318,9 +318,10 @@ async function initializeAuthentication() {
     
     // Fallback to default role or show login
     if (currentUserRole === null) {
-        currentUserRole = 'user'; // Default fallback
-        initializeRoleBasedAccess();
-        showServicesAfterAuthentication();
+        // Don't show services until authenticated
+        // currentUserRole = 'user'; // Default fallback
+        // initializeRoleBasedAccess();
+        // showServicesAfterAuthentication();
     }
 }
 

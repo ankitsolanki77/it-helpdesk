@@ -189,7 +189,7 @@ body {
 }
 
 .services-grid {
-    display: grid;
+    display: none; /* Hidden by default until authentication */
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 25px;
     width: 100%;
